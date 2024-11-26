@@ -1,39 +1,57 @@
 const predictClassification = require('../services/inferenceService');
 const crypto = require('crypto');
-const Boom = require('@hapi/boom');
 const storeData = require('../services/storeData');
-
+const getAllData = require('../services/getAllData');
+ 
 async function postPredictHandler(request, h) {
-    const { image } = request.payload;
+  const { image } = request.payload;
+  const { model } = request.server.app;
+ 
+  const { label, suggestion } = await predictClassification(model, image);
+  const id = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+ 
+  const data = {
+    "id": id,
+    "result": label,
+    "suggestion": suggestion,
+    "createdAt": createdAt
+  }
+ 
+  await storeData(id, data);
 
-    // Verifikasi ukuran gambar
-    if (image.bytes > 1000000) {
-        throw Boom.payloadTooLarge('Payload content length greater than maximum allowed: 1000000');
-    }
-
-    try {
-        const { model } = request.server.app;
-        const { label, suggestion } = await predictClassification(model, image);
-        const id = crypto.randomUUID();
-        const createdAt = new Date().toISOString();
-
-        const data = {
-            id,
-            result: label,
-            suggestion,
-            createdAt,
-        };
-
-        await storeData(id, data);
-
-        return h.response({
-            status: 'success',
-            message: 'Model is predicted successfully',
-            data,
-        }).code(201);
-    } catch (error) {
-        throw Boom.badRequest('Terjadi kesalahan dalam melakukan prediksi');
-    }
+  const response = h.response({
+    status: 'success',
+    message: 'Model is predicted successfully',
+    data
+  })
+  response.code(201);
+  return response;
+}
+ 
+async function postPredictHistoriesHandler(request, h) {
+  const allData = await getAllData();
+  
+  const formatAllData = [];
+  allData.forEach(doc => {
+      const data = doc.data();
+      formatAllData.push({
+          id: doc.id,
+          history: {
+              result: data.result,
+              createdAt: data.createdAt,
+              suggestion: data.suggestion,
+              id: doc.id
+          }
+      });
+  });
+  
+  const response = h.response({
+    status: 'success',
+    data: formatAllData
+  })
+  response.code(200);
+  return response;
 }
 
-module.exports = postPredictHandler;
+module.exports = { postPredictHandler, postPredictHistoriesHandler };
