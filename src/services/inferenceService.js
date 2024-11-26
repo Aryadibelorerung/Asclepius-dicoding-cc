@@ -13,18 +13,21 @@ async function predictClassification(model, image) {
         const score = await prediction.data();
         const confidenceScore = Math.max(...score) * 100;
 
-        const label = confidenceScore > 50 ? 'Cancer' : 'Non-cancer';
-        let suggestion = '';
+        const label = confidenceScore <= 50 ? 'Non-cancer' : 'Cancer';
+        let suggestion;
 
         if (label === 'Cancer') {
-            suggestion = 'Segera periksa ke dokter!';
-        } else {
-            suggestion = 'Penyakit kanker tidak terdeteksi.';
+            suggestion = "Segera periksa ke dokter!";
+        }
+
+        if (label === 'Non-cancer') {
+            // Modifikasi agar sesuai dengan pengujian
+            suggestion = "Penyakit kanker tidak terdeteksi.";
         }
 
         return { label, suggestion };
     } catch (error) {
-        throw new InputError(`Terjadi kesalahan dalam melakukan prediksi`);
+        throw new InputError('Terjadi kesalahan dalam melakukan prediksi');
     }
 }
 
